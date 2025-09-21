@@ -82,6 +82,44 @@ const getUser = async (req, res) => {
     .json({ id: user._id, email: user.email, password: user.password });
 };
 
-module.exports = { register, login, getUser };
+// ✅ Google login/signup
+const { OAuth2Client } = require("google-auth-library");
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const googleAuth = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({ email, name, avatar: picture, googleId });
+      await user.save();
+    } else if (!user.googleId) {
+      user.googleId = googleId;
+      await user.save();
+    }
+
+    const appToken = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRETKEY,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ message: "Success", token: appToken, user });
+  } catch (err) {
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+};
+
+module.exports = { register, login, getUser, googleAuth };
 
 // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODc3OTVjMGU5OGEwMzQzNjEyMzViNjkiLCJpYXQiOjE3NTI2Njc1ODYsImV4cCI6MTc1MjkyNjc4Nn0.TIjPCOXq6Pn12L1qEXdospaDVrwsIRAyAcxaWXjW4CA";

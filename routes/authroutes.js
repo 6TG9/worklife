@@ -10,4 +10,6 @@ router.post("/login", login);
 
 router.get("/user", authMiddleman, getUser);
 
+router.post("/google", googleAuth); // ✅ new route
+
 module.exports = router;
