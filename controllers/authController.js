@@ -88,10 +88,11 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const googleAuth = async (req, res) => {
   try {
-    const { token } = req.body;
+    // frontend sends: { googleJWT: token }
+    const { googleJWT } = req.body;
 
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken: googleJWT,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
@@ -108,14 +109,13 @@ const googleAuth = async (req, res) => {
       await user.save();
     }
 
-    const appToken = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRETKEY,
-      { expiresIn: "7d" }
-    );
-
+    // Generate JWT token for the user
+    const appToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRETKEY, {
+      expiresIn: "3d",
+    });
     res.json({ message: "Success", token: appToken, user });
   } catch (err) {
+    console.error(err);
     res.status(401).json({ message: "Invalid Google token" });
   }
 };
